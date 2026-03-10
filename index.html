@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🎰 幸運抽獎系統</title>
+<title>🎰 吉的保同安莊敬校 抽獎系統</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Space+Grotesk:wght@700;900&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -178,8 +178,8 @@
 <div class="page">
   <div class="header">
     <div class="badge">🎉 限時活動</div>
-    <h1>幸運大抽獎</h1>
-    <p>填寫問卷後，立即參與抽獎獲得豐富好禮！</p>
+    <h1>吉的保同安莊敬校</h1>
+    <p>立即參與抽獎獲得豐富好禮！</p>
   </div>
 
   <!-- 設定提示（URL 未設定時顯示） -->
@@ -197,9 +197,6 @@
   </div>
 
   <div class="machine">
-    <div class="shield-badge">
-      🛡️ 雲端防重複抽獎 <span>· 紀錄於 Google Sheets</span>
-    </div>
 
     <div class="slot-wrap" id="slotWrap">
       <div class="slot-idle">？ ？ ？</div>
@@ -223,7 +220,7 @@
     <div id="recordList"></div>
   </div>
 
-  <div class="footer-note">每人限抽一次 · 紀錄儲存於 Google Sheets · 換瀏覽器 / 無痕模式均無效</div>
+  <div class="footer-note">吉的保同安莊敬校 · 每人限抽一次</div>
 </div>
 
 <script>
@@ -261,129 +258,49 @@ async function apiCall(params) {
 
 async function startLottery() {
   if (isSpinning) return;
-
-  if (APPS_SCRIPT_URL === "YOUR_APPS_SCRIPT_URL_HERE") {
-    document.getElementById("setupWarning").style.display = "block";
-    showMsg("error", "⚠️ 請先完成 Apps Script 部署設定（見上方說明）");
-    return;
-  }
-
-  // 使用隨機產生的 ID（不需要 Email）
-  let uid = localStorage.getItem("lottery_uid");
-  if (!uid) { uid = "user_" + Date.now() + "_" + Math.random().toString(36).slice(2,8); localStorage.setItem("lottery_uid", uid); }
-  const email = uid;
-  if (false) {
-    return;
-  }
-
   isSpinning = true;
-  setBtn(true, '<span class="spinner"></span>驗證身份中...');
-  showMsg("loading", '<span class="spinner"></span>正在向 Google Sheets 驗證，請稍候...');
+  setBtn(true, '<span class="spinner"></span>抽獎中...');
+  showMsg("info", "🎲 正在為您抽獎...");
 
-  try {
-    // ① 先查詢雲端：此 Email 是否已抽過
-    const checkRes = await apiCall({ action: "check", email });
-    if (!checkRes.ok) throw new Error(checkRes.error || "伺服器錯誤");
+  const symbols = ["🎁","☕","🛍️","🌟","💫","✨","🎊","🎉","🏆","💝"];
+  const spinInterval = setInterval(() => {
+    const r = () => symbols[Math.floor(Math.random() * symbols.length)];
+    document.getElementById("slotWrap").innerHTML =
+      `<div style="text-align:center"><div class="spin-number">${r()} ${r()} ${r()}</div></div>`;
+  }, 80);
 
-    if (checkRes.drawn) {
-      const d = PRIZE_DISPLAY[checkRes.prizeId] || {};
-      showMsg("error",
-        `⚠️ 此 Email 已參與過抽獎！換瀏覽器也無法重抽。<br>
-         <small style="color:#888;margin-top:.3rem;display:block">上次獎項：${d.icon||""} ${checkRes.prizeName}</small>`
-      );
-      setBtn(true, "✅ 此帳號已抽過");
-      isSpinning = false;
-      return;
-    }
+  await new Promise(r => setTimeout(r, 2200));
+  clearInterval(spinInterval);
 
-    // ② 播放動畫
+  // 前端抽獎邏輯
+  const rand = Math.random();
+  let prizeId;
+  if      (rand < 0.001) prizeId = "p1";
+  else if (rand < 0.011) prizeId = "p2";
+  else if (rand < 0.061) prizeId = "p3";
+  else                   prizeId = "consolation";
 
-    setBtn(true, '<span class="spinner"></span>抽獎中...');
-    showMsg("info", "🎲 正在為您抽獎...");
+  const d = PRIZE_DISPLAY[prizeId] || { icon:"🎁", name:"獎項", sub:"" };
 
-    const symbols = ["🎁","☕","🛍️","🌟","💫","✨","🎊","🎉","🏆","💝"];
-    const spinInterval = setInterval(() => {
-      const r = () => symbols[Math.floor(Math.random() * symbols.length)];
-      document.getElementById("slotWrap").innerHTML =
-        `<div style="text-align:center"><div class="spin-number">${r()} ${r()} ${r()}</div></div>`;
-    }, 80);
+  document.getElementById("slotWrap").innerHTML = `
+    <div class="result-display">
+      <span class="prize-icon">${d.icon}</span>
+      <div class="prize-name">${d.name}</div>
+      <div class="prize-sub">${d.sub}</div>
+    </div>`;
 
-    // ③ 同時：呼叫後端執行抽獎（Server 決定結果 + 寫入 Sheets）
-    //    與動畫並行，至少等 2.2 秒
-    const [drawRes] = await Promise.all([
-      apiCall({ action: "draw", email }),
-      new Promise(r => setTimeout(r, 2200))
-    ]);
-    clearInterval(spinInterval);
-
-    if (!drawRes.ok) {
-      if (drawRes.error === "already_drawn") {
-        // 競態：極短時間內重複送出（正常操作不會發生）
-        const d = PRIZE_DISPLAY[drawRes.prizeId] || {};
-        showMsg("error",
-          `⚠️ 此 Email 已抽過！<br>
-           <small style="color:#888">獎項：${d.icon||""} ${drawRes.prizeName}</small>`
-        );
-        setBtn(true, "✅ 已抽過");
-        document.getElementById("slotWrap").innerHTML = `<div class="slot-idle">已抽過</div>`;
-        isSpinning = false;
-        return;
-      }
-      throw new Error(drawRes.error || "抽獎失敗");
-    }
-
-    // ④ 顯示結果
-    const prize = drawRes.prize;
-    const d = PRIZE_DISPLAY[prize.id] || { icon:"🎁", name:prize.name, sub:"" };
-
-    document.getElementById("slotWrap").innerHTML = `
-      <div class="result-display">
-        <span class="prize-icon">${d.icon}</span>
-        <div class="prize-name">${d.name}</div>
-        <div class="prize-sub">${d.sub}</div>
-      </div>`;
-
-    if (prize.id === "consolation") {
-      showMsg("info", `🌟 恭喜您獲得「${d.name}」！感謝您的參與！`);
-    } else {
-      showMsg("success", `🎉 恭喜中獎！獲得「${d.name}」！請洽主辦單位領獎。`);
-      fireConfetti();
-    }
-
-    setBtn(true, "✅ 已完成抽獎");
-    loadStockAndRender();
-    loadRecordsAndRender();
-
-  } catch (err) {
-    showMsg("error", `❌ 發生錯誤：${err.message}<br><small>請重試，或聯絡主辦單位。</small>`);
-    setBtn(false);
+  if (prizeId === "consolation") {
+    showMsg("info", `🌟 恭喜您獲得「${d.name}」！感謝您的參與！`);
+  } else {
+    showMsg("success", `🎉 恭喜中獎！獲得「${d.name}」！請洽主辦單位領獎。`);
+    fireConfetti();
   }
+
+  setBtn(false);
   isSpinning = false;
 }
 
-async function loadStockAndRender() {
-  try {
-    const res = await apiCall({ action: "stock" });
-    if (res.ok) renderPrizeList(res.stock);
-  } catch {}
-}
 
-async function loadRecordsAndRender() {
-  try {
-    const res = await apiCall({ action: "records" });
-    if (!res.ok || !res.records.length) return;
-    document.getElementById("recordSection").style.display = "block";
-    document.getElementById("recordList").innerHTML = res.records.map(r => {
-      const d = PRIZE_DISPLAY[r.prizeId] || {};
-      return `
-        <div class="record-item">
-          <span class="rid">${r.email}</span>
-          <span class="rprize">${d.icon||"🎁"} ${r.prizeName}</span>
-          <span class="rtime">${r.time}</span>
-        </div>`;
-    }).join("");
-  } catch {}
-}
 
 function renderPrizeList(stockData) {
   document.getElementById("prizeList").innerHTML = PRIZES_STATIC.map(p => {
@@ -452,12 +369,6 @@ function createStars() {
 window.addEventListener("DOMContentLoaded", () => {
   createStars();
   renderPrizeList(null);
-  if (APPS_SCRIPT_URL !== "YOUR_APPS_SCRIPT_URL_HERE") {
-    loadStockAndRender();
-    loadRecordsAndRender();
-  } else {
-    document.getElementById("setupWarning").style.display = "block";
-  }
 });
 </script>
 </body>
