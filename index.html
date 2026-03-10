@@ -65,18 +65,7 @@
     font-size:.75rem;color:#00cc6a;
   }
   .shield-badge span { color:#555; }
-  .id-section { margin-bottom:1.5rem; }
-  .id-section label {
-    display:block;font-size:.8rem;color:#aaa;
-    letter-spacing:.05em;text-transform:uppercase;margin-bottom:.5rem;
-  }
-  .id-section input {
-    width:100%;background:#0a0a20;border:1.5px solid rgba(255,215,0,.3);
-    color:#fff;font-family:inherit;font-size:.95rem;
-    padding:.7rem 1rem;border-radius:10px;outline:none;transition:border-color .3s;
-  }
-  .id-section input:focus { border-color:var(--gold); }
-  .id-section input::placeholder { color:#555; }
+
   .slot-wrap {
     background:#06060f;border:2px solid rgba(255,215,0,.2);
     border-radius:16px;padding:1.5rem;margin-bottom:1.5rem;
@@ -209,12 +198,7 @@
 
   <div class="machine">
     <div class="shield-badge">
-      🛡️ 雲端防重複抽獎 <span>· Email 驗證 · 紀錄於 Google Sheets</span>
-    </div>
-
-    <div class="id-section">
-      <label>📧 請輸入您的 Email（每人限抽一次）</label>
-      <input type="email" id="userEmail" placeholder="example@email.com" autocomplete="off">
+      🛡️ 雲端防重複抽獎 <span>· 紀錄於 Google Sheets</span>
     </div>
 
     <div class="slot-wrap" id="slotWrap">
@@ -284,10 +268,11 @@ async function startLottery() {
     return;
   }
 
-  const email = document.getElementById("userEmail").value.trim().toLowerCase();
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    showMsg("warn", "⚠️ 請輸入有效的 Email 地址");
-    document.getElementById("userEmail").focus();
+  // 使用隨機產生的 ID（不需要 Email）
+  let uid = localStorage.getItem("lottery_uid");
+  if (!uid) { uid = "user_" + Date.now() + "_" + Math.random().toString(36).slice(2,8); localStorage.setItem("lottery_uid", uid); }
+  const email = uid;
+  if (false) {
     return;
   }
 
@@ -312,7 +297,7 @@ async function startLottery() {
     }
 
     // ② 播放動畫
-    document.getElementById("userEmail").disabled = true;
+
     setBtn(true, '<span class="spinner"></span>抽獎中...');
     showMsg("info", "🎲 正在為您抽獎...");
 
@@ -372,7 +357,6 @@ async function startLottery() {
   } catch (err) {
     showMsg("error", `❌ 發生錯誤：${err.message}<br><small>請重試，或聯絡主辦單位。</small>`);
     setBtn(false);
-    document.getElementById("userEmail").disabled = false;
   }
   isSpinning = false;
 }
@@ -464,18 +448,10 @@ function createStars() {
     c.appendChild(s);
   }
 }
-function checkUrlParams() {
-  const p = new URLSearchParams(window.location.search);
-  const email = p.get("email") || p.get("e");
-  if (email) {
-    document.getElementById("userEmail").value = decodeURIComponent(email);
-    showMsg("info", `✅ 已從問卷取得 Email：${decodeURIComponent(email)}`);
-  }
-}
+
 window.addEventListener("DOMContentLoaded", () => {
   createStars();
   renderPrizeList(null);
-  checkUrlParams();
   if (APPS_SCRIPT_URL !== "YOUR_APPS_SCRIPT_URL_HERE") {
     loadStockAndRender();
     loadRecordsAndRender();
